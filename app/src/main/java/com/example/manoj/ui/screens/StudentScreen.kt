@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,24 +14,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.example.manoj.viewmodel.LibraryViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StudentScreen(viewModel: LibraryViewModel) {
+fun StudentScreen(viewModel: LibraryViewModel, navController: NavController) {
     var name by remember { mutableStateOf("") }
     var studentId by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("1234") } // Default simple password
     var className by remember { mutableStateOf("") }
-    
+
     val students by viewModel.allStudents.collectAsState()
 
     Scaffold(
         topBar = {
             LargeTopAppBar(
-                title = { Text("Students", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.largeTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                title = { Text("Manage Students", fontWeight = FontWeight.Bold) },
+                actions = {
+                    IconButton(onClick = {
+                        viewModel.logout()
+                        navController.navigate("login") { popUpTo(0) }
+                    }) {
+                        Icon(Icons.Default.ExitToApp, contentDescription = "Logout")
+                    }
+                }
             )
         }
     ) { padding ->
@@ -40,6 +48,7 @@ fun StudentScreen(viewModel: LibraryViewModel) {
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
+            // REGISTRATION CARD
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -47,67 +56,62 @@ fun StudentScreen(viewModel: LibraryViewModel) {
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 )
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text("Register New Student", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Register New Villager/Student", fontWeight = FontWeight.Bold)
+
                     OutlinedTextField(
-                        value = name, 
-                        onValueChange = { name = it }, 
-                        label = { Text("Full Name") }, 
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Full Name") },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
+                        shape = RoundedCornerShape(12.dp)
                     )
-                    
+
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
-                            value = studentId, 
-                            onValueChange = { studentId = it }, 
-                            label = { Text("Student ID") }, 
+                            value = studentId,
+                            onValueChange = { studentId = it },
+                            label = { Text("Username/ID") },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            singleLine = true
+                            shape = RoundedCornerShape(12.dp)
                         )
                         OutlinedTextField(
-                            value = className, 
-                            onValueChange = { className = it }, 
-                            label = { Text("Class/Grade") }, 
+                            value = password,
+                            onValueChange = { password = it },
+                            label = { Text("Password") },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            singleLine = true
+                            shape = RoundedCornerShape(12.dp)
                         )
                     }
-                    
+
+                    OutlinedTextField(
+                        value = className,
+                        onValueChange = { className = it },
+                        label = { Text("Class or Locality") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
                     Button(
                         onClick = {
                             if (name.isNotBlank() && studentId.isNotBlank()) {
-                                viewModel.addStudent(name, studentId, className)
-                                name = ""
-                                studentId = ""
-                                className = ""
+                                viewModel.registerStudent(name, studentId, className, password)
+                                name = ""; studentId = ""; className = ""; password = "1234"
                             }
                         },
                         modifier = Modifier.fillMaxWidth().height(50.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null)
+                        Icon(Icons.Default.Add, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Add Student")
+                        Text("Add to Library")
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            
-            Text(
-                "Registered Students", 
-                style = MaterialTheme.typography.titleLarge, 
-                fontWeight = FontWeight.Bold
-            )
-            
+
+            Text("Registered Members", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
 
             if (students.isEmpty()) {
@@ -117,40 +121,26 @@ fun StudentScreen(viewModel: LibraryViewModel) {
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().weight(1f),
-                    contentPadding = PaddingValues(bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(students) { student ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Surface(
-                                    modifier = Modifier.size(40.dp),
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            Icons.Default.Person, 
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
-                                    }
+                            Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Surface(modifier = Modifier.size(40.dp), shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Person, null) }
                                 }
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Column {
-                                    Text(student.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    Text(student.name, fontWeight = FontWeight.Bold)
                                     Text(
-                                        "ID: ${student.studentId} • Class: ${student.className}", 
+                                        "User: ${student.studentId} | Pass: ${student.password}",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }

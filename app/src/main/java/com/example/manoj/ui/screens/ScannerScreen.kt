@@ -3,9 +3,9 @@ package com.example.manoj.ui.screens
 import android.Manifest
 import android.content.pm.PackageManager
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.OptIn
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
+import com.example.manoj.data.StudentEntity
 import com.example.manoj.viewmodel.LibraryViewModel
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
@@ -41,25 +43,42 @@ fun ScannerScreen(viewModel: LibraryViewModel, navController: NavController) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
+    val scope = rememberCoroutineScope()
+
+    // Authentication Guard: Only Librarians (Teachers) should be here
+    val isTeacher by viewModel.isTeacherMode.collectAsState()
+    if (!isTeacher) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Access Denied: Only the Librarian can issue or return books.")
+        }
+        return
+    }
+
+    // State variables
     var scannedCode by remember { mutableStateOf("") }
     val students by viewModel.allStudents.collectAsState()
-    val scope = rememberCoroutineScope()
+    val allBooks by viewModel.allBooks.collectAsState()
     var isProcessing by remember { mutableStateOf(false) }
+
+    // Student Selection State
+    var selectedStudent by remember { mutableStateOf<StudentEntity?>(null) }
+    var showStudentDropdown by remember { mutableStateOf(false) }
+
+    // Logic: Find the scanned book to check its current status
+    val scannedBook = remember(scannedCode, allBooks) {
+        allBooks.find { it.bookCode == scannedCode.trim() }
+    }
+    val isAlreadyIssued = scannedBook?.isIssued ?: false
 
     var hasCameraPermission by remember {
         mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
         )
     }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
-        onResult = { granted ->
-            hasCameraPermission = granted
-        }
+        onResult = { granted -> hasCameraPermission = granted }
     )
 
     LaunchedEffect(key1 = true) {
@@ -75,12 +94,13 @@ fun ScannerScreen(viewModel: LibraryViewModel, navController: NavController) {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Camera permission is required to scan QR codes")
+                Text("Camera permission is required for the Library Assistant")
                 Button(onClick = { launcher.launch(Manifest.permission.CAMERA) }) {
                     Text("Grant Permission")
                 }
             }
         } else if (scannedCode.isEmpty()) {
+            // CAMERA SCANNING UI
             Box(modifier = Modifier.fillMaxSize()) {
                 AndroidView(
                     factory = { ctx ->
@@ -98,14 +118,10 @@ fun ScannerScreen(viewModel: LibraryViewModel, navController: NavController) {
                                 BarcodeScanning.getClient().process(image)
                                     .addOnSuccessListener { barcodes ->
                                         if (barcodes.isNotEmpty()) {
-                                            barcodes[0].rawValue?.let { 
-                                                scannedCode = it 
-                                            }
+                                            barcodes[0].rawValue?.let { scannedCode = it }
                                         }
                                     }
-                                    .addOnCompleteListener { 
-                                        imageProxy.close() 
-                                    }
+                                    .addOnCompleteListener { imageProxy.close() }
                             } else {
                                 imageProxy.close()
                             }
@@ -113,56 +129,28 @@ fun ScannerScreen(viewModel: LibraryViewModel, navController: NavController) {
 
                         val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                         cameraProviderFuture.addListener({
-                            try {
-                                val cameraProvider = cameraProviderFuture.get()
-                                cameraProvider.unbindAll()
-                                cameraProvider.bindToLifecycle(
-                                    lifecycleOwner,
-                                    selector,
-                                    preview,
-                                    imageAnalysis
-                                )
-                                preview.setSurfaceProvider(previewView.surfaceProvider)
-                            } catch (e: Exception) {
-                                Log.e("Scanner", "Camera binding failed", e)
-                            }
+                            val cameraProvider = cameraProviderFuture.get()
+                            cameraProvider.unbindAll()
+                            cameraProvider.bindToLifecycle(lifecycleOwner, selector, preview, imageAnalysis)
+                            preview.setSurfaceProvider(previewView.surfaceProvider)
                         }, ContextCompat.getMainExecutor(ctx))
                         previewView
                     },
                     modifier = Modifier.fillMaxSize()
                 )
-                
+
                 // Scanner Overlay
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f))
-                ) {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            "Scan Book QR Code",
-                            color = Color.White,
-                            style = MaterialTheme.typography.headlineSmall,
-                            modifier = Modifier.padding(bottom = 24.dp)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(280.dp)
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(Color.Transparent)
-                                .padding(2.dp)
-                                .background(Color.Black.copy(alpha = 0.1f))
-                        ) {
-                            // Target area Visualization
-                        }
-                    }
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f))) {
+                    Text(
+                        "Point at Book QR/Barcode",
+                        color = Color.White,
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 100.dp),
+                        style = MaterialTheme.typography.headlineSmall
+                    )
                 }
             }
         } else {
-            // Result UI
+            // RESULT UI - LIBRARIAN WORKFLOW
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -172,108 +160,94 @@ fun ScannerScreen(viewModel: LibraryViewModel, navController: NavController) {
                 verticalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.CheckCircle,
+                    imageVector = if (isAlreadyIssued) Icons.Default.Refresh else Icons.Default.CheckCircle,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(120.dp)
+                    tint = if (isAlreadyIssued) Color(0xFFFFA000) else MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(80.dp)
                 )
-                
-                Spacer(modifier = Modifier.height(32.dp))
-                
+
                 Text(
-                    "Book Detected!",
-                    style = MaterialTheme.typography.headlineMedium,
+                    text = if (isAlreadyIssued) "Confirm Return" else "Issue Book (15 Days)",
+                    style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
-                
+
+                // Book Info Card
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 24.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    shape = RoundedCornerShape(24.dp)
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("Scanned ID", style = MaterialTheme.typography.labelLarge)
-                        Text(
-                            scannedCode,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                    Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(scannedBook?.title ?: "Unknown Book", fontWeight = FontWeight.Bold)
+                        Text("Code: $scannedCode", style = MaterialTheme.typography.bodySmall)
                     }
                 }
 
-                if (students.isEmpty()) {
-                    Text(
-                        "No students registered.\nPlease add a student first.",
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(bottom = 24.dp)
-                    )
-                    Button(
-                        onClick = { navController.navigate("students") },
-                        modifier = Modifier.fillMaxWidth().height(56.dp)
-                    ) {
-                        Text("Add Student")
-                    }
-                } else {
-                    Button(
-                        onClick = {
-                            if (!isProcessing) {
-                                isProcessing = true
-                                val student = students.first()
-                                scope.launch {
-                                    // FIXED: Now correctly calling suspend function and waiting for completion
-                                    val success = viewModel.processScannedCode(scannedCode, student.id, student.name)
-                                    if (success) {
-                                        scannedCode = ""
-                                        navController.navigate("history") {
-                                            popUpTo("scan") { inclusive = true }
-                                        }
-                                    } else {
-                                        isProcessing = false
-                                        // Handle failure if book not found
-                                    }
-                                }
+                // IF ISSUING: Require Student Selection
+                if (!isAlreadyIssued) {
+                    Text("Assign to Student:", style = MaterialTheme.typography.labelLarge, modifier = Modifier.fillMaxWidth())
+                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                        OutlinedButton(
+                            onClick = { showStudentDropdown = true },
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(selectedStudent?.name ?: "Select a Villager/Student")
+                                Icon(Icons.Default.ArrowDropDown, null)
                             }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        enabled = !isProcessing
-                    ) {
-                        if (isProcessing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text("Confirm & Process", style = MaterialTheme.typography.titleMedium)
+                        }
+                        DropdownMenu(
+                            expanded = showStudentDropdown,
+                            onDismissRequest = { showStudentDropdown = false },
+                            modifier = Modifier.fillMaxWidth(0.8f)
+                        ) {
+                            students.forEach { student ->
+                                DropdownMenuItem(
+                                    text = { Text(student.name) },
+                                    onClick = {
+                                        selectedStudent = student
+                                        showStudentDropdown = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                OutlinedButton(
-                    onClick = { scannedCode = "" },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    enabled = !isProcessing
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Final Action Button
+                Button(
+                    onClick = {
+                        if (!isProcessing && (isAlreadyIssued || selectedStudent != null)) {
+                            isProcessing = true
+                            scope.launch {
+                                if (isAlreadyIssued) {
+                                    viewModel.returnBookByLibrarian(scannedCode)
+                                    Toast.makeText(context, "Book Returned successfully", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    selectedStudent?.let {
+                                        viewModel.issueBookByLibrarian(scannedCode, it)
+                                        Toast.makeText(context, "Issued to ${it.name} for 15 days", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                                scannedCode = ""
+                                selectedStudent = null
+                                isProcessing = false
+                                navController.navigate("home")
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    enabled = !isProcessing && (isAlreadyIssued || selectedStudent != null),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null)
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("Scan Another Book")
+                    Text(if (isAlreadyIssued) "Confirm Return" else "Confirm 15-Day Issue")
+                }
+
+                TextButton(onClick = { scannedCode = ""; selectedStudent = null }) {
+                    Text("Cancel and Scan Again")
                 }
             }
         }

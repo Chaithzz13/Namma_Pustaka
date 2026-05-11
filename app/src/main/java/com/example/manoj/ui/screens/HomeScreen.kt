@@ -10,13 +10,11 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -25,21 +23,42 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.manoj.viewmodel.LibraryViewModel
+import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(viewModel: LibraryViewModel, navController: NavController) {
+    val isTeacher by viewModel.isTeacherMode.collectAsState()
+    val currentStudent by viewModel.currentStudent.collectAsState()
     val books by viewModel.allBooks.collectAsState()
+    val myBorrowedBooks by viewModel.myBorrowedBooks.collectAsState(initial = emptyList())
+
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("All") }
-    
+
     val categories = listOf("All", "Story", "Science", "History", "Literature")
 
     Scaffold(
         topBar = {
             LargeTopAppBar(
-                title = { 
-                    Text("Digital Shelf", fontWeight = FontWeight.Bold) 
+                title = {
+                    Column {
+                        val titleText = if (isTeacher) "Librarian Portal" else "Namaskara, ${currentStudent?.name ?: "Student"}"
+                        Text(titleText, fontWeight = FontWeight.Bold)
+                        if (!isTeacher) {
+                            Text("Your Rural Library Assistant", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        viewModel.logout()
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }) {
+                        Icon(Icons.Default.ExitToApp, contentDescription = "Logout")
+                    }
                 },
                 colors = TopAppBarDefaults.largeTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
@@ -47,11 +66,13 @@ fun HomeScreen(viewModel: LibraryViewModel, navController: NavController) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { navController.navigate("add_book") },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Book")
+            if (isTeacher) {
+                FloatingActionButton(
+                    onClick = { navController.navigate("add_book") },
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Book")
+                }
             }
         }
     ) { padding ->
@@ -61,7 +82,51 @@ fun HomeScreen(viewModel: LibraryViewModel, navController: NavController) {
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
-            // Search Bar
+            // --- NEW: STUDENT PERSONAL SECTION ---
+            if (!isTeacher && myBorrowedBooks.isNotEmpty()) {
+                Text(
+                    text = "My Borrowed Books",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                ) {
+                    items(myBorrowedBooks) { tx ->
+                        val currentTime = System.currentTimeMillis()
+                        val diff = tx.dueDate - currentTime
+                        val daysLeft = TimeUnit.MILLISECONDS.toDays(diff)
+
+                        val statusColor = if (daysLeft < 0) MaterialTheme.colorScheme.error
+                        else if (daysLeft < 3) Color(0xFFFFA000) // Orange warning
+                        else MaterialTheme.colorScheme.primary
+
+                        Card(
+                            modifier = Modifier.width(200.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = statusColor.copy(alpha = 0.1f)
+                            )
+                        ) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text(tx.bookTitle, fontWeight = FontWeight.Bold, maxLines = 1)
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = if (daysLeft < 0) "Overdue!" else "Due in $daysLeft days",
+                                    color = statusColor,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+                Divider(Modifier.padding(bottom = 16.dp), thickness = 0.5.dp)
+            }
+
+            // --- SEARCH & FILTERS ---
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -74,7 +139,6 @@ fun HomeScreen(viewModel: LibraryViewModel, navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Category Chips
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -90,16 +154,20 @@ fun HomeScreen(viewModel: LibraryViewModel, navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // --- BOOK GRID ---
             if (books.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Your library is empty. Add your first book!", color = MaterialTheme.colorScheme.outline)
+                    Text(
+                        text = if (isTeacher) "Library is empty." else "No books found.",
+                        color = MaterialTheme.colorScheme.outline
+                    )
                 }
             } else {
                 val filteredBooks = books.filter {
                     (selectedCategory == "All" || it.category.equals(selectedCategory, ignoreCase = true)) &&
-                    (it.title.contains(searchQuery, true) || it.author.contains(searchQuery, true))
+                            (it.title.contains(searchQuery, true) || it.author.contains(searchQuery, true))
                 }
-                
+
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize(),
@@ -155,11 +223,9 @@ fun BookItem(book: com.example.manoj.data.BookEntity, onClick: () -> Unit) {
                         fontWeight = FontWeight.Bold
                     )
                 }
-                
+
                 Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
                     color = if (book.isIssued) MaterialTheme.colorScheme.error else Color(0xFF4CAF50),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -174,34 +240,16 @@ fun BookItem(book: com.example.manoj.data.BookEntity, onClick: () -> Unit) {
             }
 
             Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = book.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1
-                )
-                Text(
-                    text = book.author,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1
-                )
+                Text(text = book.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(text = book.author, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                 Spacer(modifier = Modifier.weight(1f))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = book.category,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = "${book.pages} pgs",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
+                    Text(text = book.category, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    Text(text = "${book.pages} pgs", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                 }
             }
         }
