@@ -1,4 +1,4 @@
-package com.example.manoj.data
+package com.example.chaithra.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

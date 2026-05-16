@@ -1,4 +1,4 @@
-package com.example.manoj.ui.screens
+package com.example.chaithra.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,9 +8,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -24,11 +22,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.manoj.viewmodel.LibraryViewModel
-import java.util.concurrent.TimeUnit
+import com.example.chaithra.viewmodel.LibraryViewModel
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import com.example.manoj.worker.DeadlineWorker
+import com.example.chaithra.worker.DeadlineWorker
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -223,7 +220,7 @@ fun HomeScreen(viewModel: LibraryViewModel, navController: NavController) {
 }
 
 @Composable
-fun BookItem(book: com.example.manoj.data.BookEntity, onClick: () -> Unit) {
+fun BookItem(book: com.example.chaithra.data.BookEntity, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()

@@ -1,4 +1,4 @@
-package com.example.manoj
+package com.example.chaithra
 
 import org.junit.Test
 

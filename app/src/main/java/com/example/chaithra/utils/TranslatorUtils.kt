@@ -1,7 +1,6 @@
-package com.example.manoj.utils
+package com.example.chaithra.utils
 
 import android.util.Log
-import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslatorOptions

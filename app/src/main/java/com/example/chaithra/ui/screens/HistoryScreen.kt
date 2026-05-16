@@ -1,4 +1,4 @@
-package com.example.manoj.ui.screens
+package com.example.chaithra.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -19,7 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.manoj.viewmodel.LibraryViewModel
+import com.example.chaithra.viewmodel.LibraryViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -89,7 +89,7 @@ fun HistoryScreen(viewModel: LibraryViewModel, navController: NavController) {
 }
 
 @Composable
-fun TransactionItem(tx: com.example.manoj.data.TransactionEntity, sdf: SimpleDateFormat) {
+fun TransactionItem(tx: com.example.chaithra.data.TransactionEntity, sdf: SimpleDateFormat) {
     // Logic: Check if book is currently held past the specific dueDate
     val isOverdue = !tx.returned && (System.currentTimeMillis() > tx.dueDate)
 

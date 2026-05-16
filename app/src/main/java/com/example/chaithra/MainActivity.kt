@@ -1,4 +1,4 @@
-package com.example.manoj
+package com.example.chaithra
 
 import android.Manifest
 import android.os.Build
@@ -26,12 +26,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.work.*
-import com.example.manoj.ui.screens.*
-import com.example.manoj.ui.theme.ManojTheme
-import com.example.manoj.viewmodel.LibraryViewModel
-import com.example.manoj.worker.DeadlineWorker
+import com.example.chaithra.ui.screens.*
+import com.example.chaithra.ui.theme.ManojTheme
+import com.example.chaithra.viewmodel.LibraryViewModel
+import com.example.chaithra.worker.DeadlineWorker
 import java.util.concurrent.TimeUnit
-import com.example.manoj.utils.TranslatorUtils
+import com.example.chaithra.utils.TranslatorUtils
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

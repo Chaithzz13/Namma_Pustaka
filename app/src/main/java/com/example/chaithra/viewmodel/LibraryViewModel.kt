@@ -1,9 +1,9 @@
-package com.example.manoj.viewmodel
+package com.example.chaithra.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.manoj.data.*
+import com.example.chaithra.data.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*

@@ -1,4 +1,4 @@
-package com.example.manoj.worker
+package com.example.chaithra.worker
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,7 +7,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.example.manoj.data.LibraryDatabase
+import com.example.chaithra.data.LibraryDatabase
 import kotlinx.coroutines.flow.first
 import kotlin.math.ceil
 

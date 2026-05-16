@@ -1,6 +1,5 @@
-package com.example.manoj.ui.screens
+package com.example.chaithra.ui.screens
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -16,7 +15,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.manoj.viewmodel.LibraryViewModel
+import com.example.chaithra.viewmodel.LibraryViewModel
 
 @Composable
 fun LoginScreen(viewModel: LibraryViewModel, navController: NavController) {

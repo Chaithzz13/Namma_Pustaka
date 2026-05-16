@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.manoj"
+    namespace = "com.example.chaithra"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.manoj"
+        applicationId = "com.example.chaithra"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

@@ -1,4 +1,4 @@
-package com.example.manoj.ui.theme
+package com.example.chaithra.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
