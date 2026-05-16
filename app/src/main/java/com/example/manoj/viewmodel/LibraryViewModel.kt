@@ -15,6 +15,8 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
 
     private val dao = LibraryDatabase.getDatabase(application).dao()
 
+
+
     // 1. ROLE & SESSION MANAGEMENT
     private val _isTeacherMode = MutableStateFlow(false)
     val isTeacherMode: StateFlow<Boolean> = _isTeacherMode
@@ -44,6 +46,30 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // 4. AUTHENTICATION LOGIC
+
+    // Inside LibraryViewModel.kt
+
+    // 1. Top 5 Most Popular Books
+    val popularBooks: StateFlow<List<Pair<String, Int>>> = allTransactions
+        .map { txs ->
+            txs.groupBy { it.bookTitle }
+                .mapValues { it.value.size }
+                .toList()
+                .sortedByDescending { it.second }
+                .take(5)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // 2. Borrowing Activity by Hour (Peak Hours)
+    val peakHours: StateFlow<List<Pair<Int, Int>>> = allTransactions
+        .map { txs ->
+            val hourMap = mutableMapOf<Int, Int>()
+            txs.forEach { tx ->
+                val calendar = java.util.Calendar.getInstance().apply { timeInMillis = tx.borrowDate }
+                val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+                hourMap[hour] = (hourMap[hour] ?: 0) + 1
+            }
+            hourMap.toList().sortedBy { it.first }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     fun loginAsTeacher() {
         _isTeacherMode.value = true
         _currentStudent.value = null

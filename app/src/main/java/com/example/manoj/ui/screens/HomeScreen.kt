@@ -8,7 +8,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -24,6 +26,9 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.manoj.viewmodel.LibraryViewModel
 import java.util.concurrent.TimeUnit
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import com.example.manoj.worker.DeadlineWorker
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,7 +87,39 @@ fun HomeScreen(viewModel: LibraryViewModel, navController: NavController) {
                 .padding(padding)
                 .padding(horizontal = 16.dp)
         ) {
-            // --- NEW: STUDENT PERSONAL SECTION ---
+            // --- LIBRARIAN INSIGHTS SECTION ---
+            if (isTeacher) {
+                Button(
+                    onClick = { navController.navigate("insights") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("View Library Insights & Analytics", fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // TEMPORARY TEST BUTTON
+                Button(
+                    onClick = {
+                        val testRequest = OneTimeWorkRequestBuilder<DeadlineWorker>().build()
+                        WorkManager.getInstance(navController.context).enqueue(testRequest)
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("DEBUG: Trigger Notification Check", color = Color.White)
+                }
+            }
+
+            // --- STUDENT PERSONAL SECTION ---
             if (!isTeacher && myBorrowedBooks.isNotEmpty()) {
                 Text(
                     text = "My Borrowed Books",
@@ -97,8 +134,7 @@ fun HomeScreen(viewModel: LibraryViewModel, navController: NavController) {
                     items(myBorrowedBooks) { tx ->
                         val currentTime = System.currentTimeMillis()
                         val diff = tx.dueDate - currentTime
-                        val daysLeft = TimeUnit.MILLISECONDS.toDays(diff)
-
+                        val daysLeft = Math.ceil(diff.toDouble() / (1000 * 60 * 60 * 24)).toLong()
                         val statusColor = if (daysLeft < 0) MaterialTheme.colorScheme.error
                         else if (daysLeft < 3) Color(0xFFFFA000) // Orange warning
                         else MaterialTheme.colorScheme.primary

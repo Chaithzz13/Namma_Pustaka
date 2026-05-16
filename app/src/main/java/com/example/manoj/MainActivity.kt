@@ -1,9 +1,13 @@
 package com.example.manoj
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -21,18 +25,64 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.work.*
 import com.example.manoj.ui.screens.*
 import com.example.manoj.ui.theme.ManojTheme
 import com.example.manoj.viewmodel.LibraryViewModel
+import com.example.manoj.worker.DeadlineWorker
+import java.util.concurrent.TimeUnit
+import com.example.manoj.utils.TranslatorUtils
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // --- Initialize Notification Worker ---
+        setupDeadlineWorker()
+
+        // --- Pre-download Kannada Translation Model ---
+        try {
+            TranslatorUtils.prepareModel()
+        } catch (e: Exception) {
+            android.util.Log.e("Main", "Translator failed to init: ${e.message}")
+        }
+
         setContent {
             ManojTheme {
+                RequestNotificationPermission()
                 MainApp()
             }
+        }
+    }
+
+    private fun setupDeadlineWorker() {
+        val workRequest = PeriodicWorkRequestBuilder<DeadlineWorker>(24, TimeUnit.HOURS)
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                    .setRequiresBatteryNotLow(true)
+                    .build()
+            )
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "deadline_reminder_work",
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
+    }
+}
+
+@Composable
+fun RequestNotificationPermission() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val launcher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission(),
+            onResult = { isGranted -> /* Handle permission result if needed */ }
+        )
+        LaunchedEffect(Unit) {
+            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 }
@@ -55,10 +105,8 @@ fun MainApp() {
     val currentDestination = navBackStackEntry?.destination
     val currentRoute = currentDestination?.route
 
-    // Get the current role state
     val isTeacher by viewModel.isTeacherMode.collectAsState()
 
-    // Dynamically build the navigation items based on the role
     val items = remember(isTeacher) {
         if (isTeacher) {
             listOf(Screen.Home, Screen.Scan, Screen.History, Screen.Students, Screen.AddBook, Screen.Leaderboard)
@@ -69,7 +117,7 @@ fun MainApp() {
 
     Scaffold(
         bottomBar = {
-            if (currentRoute != Screen.Login.route) {
+            if (currentRoute != Screen.Login.route && currentRoute != "insights") {
                 NavigationBar(tonalElevation = 8.dp) {
                     items.forEach { screen ->
                         NavigationBarItem(
@@ -101,10 +149,7 @@ fun MainApp() {
             composable(Screen.Scan.route) { ScannerScreen(viewModel, navController) }
             composable(Screen.History.route) { HistoryScreen(viewModel, navController) }
             composable(Screen.Students.route) { StudentScreen(viewModel, navController) }
-
-            // FIXED: Added navController here
             composable(Screen.Leaderboard.route) { LeaderboardScreen(viewModel, navController) }
-
             composable(Screen.AddBook.route) { AddBookScreen(viewModel, navController) }
 
             composable(
@@ -113,6 +158,11 @@ fun MainApp() {
             ) { backStackEntry ->
                 val bookId = backStackEntry.arguments?.getLong("bookId") ?: 0L
                 BookDetailScreen(bookId, viewModel, navController)
+            }
+
+            // --- LIBRARY INSIGHTS ROUTE ---
+            composable("insights") {
+                LibraryInsightsScreen(viewModel = viewModel, navController = navController)
             }
         }
     }
